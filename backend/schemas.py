@@ -40,6 +40,8 @@ class EdgeSchema(BaseModel):
     id: str
     source: str
     target: str
+    source_label: Optional[str] = None
+    target_label: Optional[str] = None
 
 class GraphVersionBase(BaseModel):
     graph_id: int

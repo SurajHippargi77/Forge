@@ -63,6 +63,24 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ versionAId, versionBId, onClose
     };
     const countBg = { added: 'bg-green-600', removed: 'bg-red-600', modified: 'bg-yellow-600' };
 
+    // Node type display mapping
+    const nodeTypeMap: Record<string, string> = {
+      relu: 'ReLU',
+      batchnorm: 'BatchNorm',
+      dense: 'Dense',
+      conv2d: 'Conv2D',
+      dropout: 'Dropout',
+      input: 'Input',
+      output: 'Output',
+      custom: 'Custom',
+    };
+
+    // Helper to get display name for modified nodes
+    const getModifiedNodeName = (nodeId: string) => {
+      const typeStr = nodeId.split('-')[0].toLowerCase();
+      return nodeTypeMap[typeStr] || nodeId;
+    };
+
     if (items.length === 0) {
       return (
         <div className="bg-gray-800/50 rounded-lg p-4 border border-[#334155]">
@@ -78,12 +96,18 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ versionAId, versionBId, onClose
           <span className={`${countBg[type]} text-white text-xs px-2.5 py-0.5 rounded-full font-medium`}>{items.length}</span>
         </div>
         <div className="space-y-2">
-          {items.map((item, index) => (
-            <div key={index} className={`${chipStyles[type]} px-3 py-2 rounded-md text-sm flex items-center space-x-2`}>
-              <span className="font-bold opacity-60">{icon}</span>
-              <span className="font-medium">{item.label || item.node_id} {item.type && <span className="opacity-60">({item.type})</span>}</span>
-            </div>
-          ))}
+          {items.map((item, index) => {
+            const displayName = type === 'modified' 
+              ? getModifiedNodeName(item.node_id)
+              : (item.label || item.node_id);
+            
+            return (
+              <div key={index} className={`${chipStyles[type]} px-3 py-2 rounded-md text-sm flex items-center space-x-2`}>
+                <span className="font-bold opacity-60">{icon}</span>
+                <span className="font-medium">{displayName} {item.type && <span className="opacity-60">({item.type})</span>}</span>
+              </div>
+            );
+          })}
         </div>
       </div>
     );
@@ -92,9 +116,9 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ versionAId, versionBId, onClose
   if (isLoading || !diffResult) {
     return (
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-        <div className="rounded-xl p-8 w-96 max-w-full mx-4 text-center border border-[#334155]" style={{ backgroundColor: '#1e2a3a' }}>
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mx-auto mb-4"></div>
-          <div className="text-gray-300">Analyzing structural changes...</div>
+        <div className="rounded-xl p-4 w-64 max-w-full mx-4 text-center border border-[#334155]" style={{ backgroundColor: '#1e2a3a' }}>
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-400 mx-auto mb-3"></div>
+          <div className="text-gray-300 text-sm">Analyzing structural changes...</div>
         </div>
       </div>
     );
@@ -142,8 +166,11 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ versionAId, versionBId, onClose
                       <h5 className="text-sm font-medium text-green-400 mb-2">Added Edges:</h5>
                       <div className="space-y-1">
                         {added_edges.map((edge, index) => {
-                          const srcName = edge.source.split('-')[0].charAt(0).toUpperCase() + edge.source.split('-')[0].slice(1);
-                          const tgtName = edge.target.split('-')[0].charAt(0).toUpperCase() + edge.target.split('-')[0].slice(1);
+                          // Use labels if available, otherwise parse ID
+                          const srcName = edge.source_label || 
+                            (edge.source.split('-')[0].charAt(0).toUpperCase() + edge.source.split('-')[0].slice(1));
+                          const tgtName = edge.target_label || 
+                            (edge.target.split('-')[0].charAt(0).toUpperCase() + edge.target.split('-')[0].slice(1));
                           return (
                             <div key={index} className="bg-[#14532d] text-green-300 border border-green-800/40 px-3 py-2 rounded-md text-sm">
                               + {srcName} → {tgtName}
@@ -158,8 +185,11 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ versionAId, versionBId, onClose
                       <h5 className="text-sm font-medium text-red-400 mb-2">Removed Edges:</h5>
                       <div className="space-y-1">
                         {removed_edges.map((edge, index) => {
-                          const srcName = edge.source.split('-')[0].charAt(0).toUpperCase() + edge.source.split('-')[0].slice(1);
-                          const tgtName = edge.target.split('-')[0].charAt(0).toUpperCase() + edge.target.split('-')[0].slice(1);
+                          // Use labels if available, otherwise parse ID
+                          const srcName = edge.source_label || 
+                            (edge.source.split('-')[0].charAt(0).toUpperCase() + edge.source.split('-')[0].slice(1));
+                          const tgtName = edge.target_label || 
+                            (edge.target.split('-')[0].charAt(0).toUpperCase() + edge.target.split('-')[0].slice(1));
                           return (
                             <div key={index} className="bg-[#7f1d1d] text-red-300 border border-red-800/40 px-3 py-2 rounded-md text-sm">
                               − {srcName} → {tgtName}

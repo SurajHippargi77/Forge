@@ -3,8 +3,11 @@ from sqlalchemy.orm import declarative_base
 from sqlalchemy import event
 import os
 
-# Database URL for async SQLite
-SQLALCHEMY_DATABASE_URL = "sqlite+aiosqlite:///./forge.db"
+import os
+
+# Get the absolute path to the database file
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "slingshot.db")
+SQLALCHEMY_DATABASE_URL = f"sqlite+aiosqlite:///{DB_PATH.replace(chr(92), '/')}"
 
 # Create async engine
 engine = create_async_engine(

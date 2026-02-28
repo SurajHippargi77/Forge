@@ -122,18 +122,17 @@ The frontend application will be available at `http://localhost:5173`
 - `POST /versions` - Create new version
 - `DELETE /versions/{id}` - Delete version
 
-## Development
+## Features Implemented
 
-This project is currently in scaffold stage. The basic structure and dependencies are set up, but business logic implementation is pending.
-
-### Next Steps
-
-1. Implement graph editing functionality in `GraphEditor.tsx`
-2. Build experiment tracking in `ExperimentDashboard.tsx`
-3. Create lineage visualization in `LineageTree.tsx`
-4. Develop version comparison in `DiffViewer.tsx`
-5. Set up state management with Zustand
-6. Implement API client for backend communication
+- **Visual Graph Editor** - Drag-and-drop node interface with React Flow  
+- **Hyperparameter Sweep Orchestrator** - Parallel experiment execution with real-time monitoring  
+- **Structural Diff Engine** - Compare model architectures across versions  
+- **Lineage Tree** - Full version control and experiment tracking  
+- **Impact Analysis** - Correlate architecture changes with performance metrics  
+- **Custom Algorithm Upload** - Execute user-defined training algorithms  
+- **Real Math-Based Training** - Gradient descent and Adam optimizer implementations  
+- **Dark Theme UI** - Modern, responsive interface with TailwindCSS  
+- **Async Backend** - FastAPI with async SQLAlchemy for high performance  
 
 ## License
 

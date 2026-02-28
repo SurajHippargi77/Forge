@@ -136,12 +136,16 @@ async def compute_diff(
     ]
     
     # Find modified nodes (in both but different)
+    # Only compare params field, ignore position and label changes
     modified_nodes = []
     for node_id in nodes_a:
         if node_id in nodes_b:
             node_a = nodes_a[node_id]
             node_b = nodes_b[node_id]
-            if node_a != node_b:  # Simple comparison
+            # Only consider it modified if params dict changed
+            params_a = node_a.get("params", {})
+            params_b = node_b.get("params", {})
+            if params_a != params_b:
                 modified_nodes.append({
                     "node_id": node_id,
                     "old_node": node_a,
@@ -149,23 +153,49 @@ async def compute_diff(
                 })
     
     # Find added edges (in B but not in A)
-    added_edges = [
-        EdgeSchema(**edges_b[edge_id]) 
-        for edge_id in edges_b if edge_id not in edges_a
-    ]
+    # Enrich with source/target labels from nodes
+    added_edges_list = []
+    for edge_id in edges_b:
+        if edge_id not in edges_a:
+            edge_data = edges_b[edge_id]
+            # Look up node labels
+            source_node = nodes_b.get(edge_data.get("source"))
+            target_node = nodes_b.get(edge_data.get("target"))
+            
+            edge_dict = {
+                "id": edge_data.get("id"),
+                "source": edge_data.get("source"),
+                "target": edge_data.get("target"),
+                "source_label": source_node.get("label") if source_node else None,
+                "target_label": target_node.get("label") if target_node else None,
+            }
+            added_edges_list.append(EdgeSchema(**edge_dict))
     
     # Find removed edges (in A but not in B)
-    removed_edges = [
-        EdgeSchema(**edges_a[edge_id]) 
-        for edge_id in edges_a if edge_id not in edges_b
-    ]
+    # Enrich with source/target labels from nodes
+    removed_edges_list = []
+    for edge_id in edges_a:
+        if edge_id not in edges_b:
+            edge_data = edges_a[edge_id]
+            # Look up node labels
+            source_node = nodes_a.get(edge_data.get("source"))
+            target_node = nodes_a.get(edge_data.get("target"))
+            
+            edge_dict = {
+                "id": edge_data.get("id"),
+                "source": edge_data.get("source"),
+                "target": edge_data.get("target"),
+                "source_label": source_node.get("label") if source_node else None,
+                "target_label": target_node.get("label") if target_node else None,
+            }
+            removed_edges_list.append(EdgeSchema(**edge_dict))
     
     return StructuralDiff(
         added_nodes=added_nodes,
         removed_nodes=removed_nodes,
         modified_nodes=modified_nodes,
-        added_edges=added_edges,
-        removed_edges=removed_edges
+        added_edges=added_edges_list,
+        removed_edges=removed_edges_list
     )
 
 @router.post("/impact", response_model=ImpactAnalysis)
@@ -206,13 +236,13 @@ async def compute_impact(
         added_types = {n.type.lower() for n in structural_diff.added_nodes}
         removed_count = len(structural_diff.removed_nodes)
         if "batchnorm" in added_types:
-            return 18.0, ImpactLevel.HIGH_POSITIVE
+            return 22.0, ImpactLevel.HIGH_POSITIVE
         if "dropout" in added_types:
-            return 8.0, ImpactLevel.LOW_POSITIVE
+            return 10.0, ImpactLevel.LOW_POSITIVE
         if added_types:
-            return 5.0, ImpactLevel.LOW_POSITIVE
+            return 6.0, ImpactLevel.LOW_POSITIVE
         if removed_count > 0:
-            return 5.0, ImpactLevel.LOW_NEGATIVE
+            return 6.0, ImpactLevel.LOW_NEGATIVE
         return 0.0, ImpactLevel.NEUTRAL
 
     if best_a and best_b and best_a.metrics and best_b.metrics:
@@ -228,19 +258,21 @@ async def compute_impact(
         else:
             impact_score = 0
         
-        # Determine impact level
-        if impact_score > 15:
-            if delta < 0:
+        # Determine impact level based on score and direction
+        if delta <= 0:  # Improvement (negative delta is good)
+            if impact_score >= 20:
                 impact_level = ImpactLevel.HIGH_POSITIVE
-            else:
-                impact_level = ImpactLevel.HIGH_NEGATIVE
-        elif impact_score >= 5:
-            if delta < 0:
+            elif impact_score >= 5:
                 impact_level = ImpactLevel.LOW_POSITIVE
             else:
+                impact_level = ImpactLevel.NEUTRAL
+        else:  # Degradation (positive delta is bad)
+            if impact_score >= 20:
+                impact_level = ImpactLevel.HIGH_NEGATIVE
+            elif impact_score >= 5:
                 impact_level = ImpactLevel.LOW_NEGATIVE
-        else:
-            impact_level = ImpactLevel.NEUTRAL
+            else:
+                impact_level = ImpactLevel.NEUTRAL
         
         metric_delta = MetricDelta(
             train_loss_delta=(
@@ -258,11 +290,11 @@ async def compute_impact(
 
         improvement_pct = 0.0
         if "batchnorm" in added_types:
-            improvement_pct = 15.0
+            improvement_pct = 22.0
         elif "dropout" in added_types:
-            improvement_pct = 8.0
+            improvement_pct = 10.0
         elif added_types:
-            improvement_pct = 5.0
+            improvement_pct = 6.0
 
         if improvement_pct > 0 and val_loss_a > 0:
             simulated_delta = -val_loss_a * (improvement_pct / 100.0)
@@ -272,7 +304,7 @@ async def compute_impact(
                 val_loss_delta=simulated_delta,
                 accuracy_delta=improvement_pct / 100.0 * 0.5
             )
-            if impact_score > 15:
+            if impact_score >= 20:
                 impact_level = ImpactLevel.HIGH_POSITIVE
             elif impact_score >= 5:
                 impact_level = ImpactLevel.LOW_POSITIVE
