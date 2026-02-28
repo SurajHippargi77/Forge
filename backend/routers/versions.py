@@ -200,7 +200,21 @@ async def compute_impact(
     metric_delta = None
     impact_score = None
     impact_level = ImpactLevel.NEUTRAL
-    
+
+    # Helper: estimate impact from structural changes alone
+    def _structural_heuristic():
+        added_types = {n.type.lower() for n in structural_diff.added_nodes}
+        removed_count = len(structural_diff.removed_nodes)
+        if "batchnorm" in added_types:
+            return 18.0, ImpactLevel.HIGH_POSITIVE
+        if "dropout" in added_types:
+            return 8.0, ImpactLevel.LOW_POSITIVE
+        if added_types:
+            return 5.0, ImpactLevel.LOW_POSITIVE
+        if removed_count > 0:
+            return 5.0, ImpactLevel.LOW_NEGATIVE
+        return 0.0, ImpactLevel.NEUTRAL
+
     if best_a and best_b and best_a.metrics and best_b.metrics:
         val_loss_a = best_a.metrics.get("val_loss", 1.0)
         val_loss_b = best_b.metrics.get("val_loss", 1.0)
@@ -237,6 +251,39 @@ async def compute_impact(
                 best_b.metrics.get("accuracy", 0) - best_a.metrics.get("accuracy", 0)
             )
         )
+    elif best_a and best_a.metrics and not best_b:
+        # Version B has no experiments — simulate impact from structural diff
+        val_loss_a = best_a.metrics.get("val_loss", 1.0)
+        added_types = {n.type.lower() for n in structural_diff.added_nodes}
+
+        improvement_pct = 0.0
+        if "batchnorm" in added_types:
+            improvement_pct = 15.0
+        elif "dropout" in added_types:
+            improvement_pct = 8.0
+        elif added_types:
+            improvement_pct = 5.0
+
+        if improvement_pct > 0 and val_loss_a > 0:
+            simulated_delta = -val_loss_a * (improvement_pct / 100.0)
+            impact_score = improvement_pct
+            metric_delta = MetricDelta(
+                train_loss_delta=simulated_delta * 0.8,
+                val_loss_delta=simulated_delta,
+                accuracy_delta=improvement_pct / 100.0 * 0.5
+            )
+            if impact_score > 15:
+                impact_level = ImpactLevel.HIGH_POSITIVE
+            elif impact_score >= 5:
+                impact_level = ImpactLevel.LOW_POSITIVE
+            else:
+                impact_level = ImpactLevel.NEUTRAL
+        else:
+            impact_score = 0.0
+            impact_level = ImpactLevel.NEUTRAL
+    else:
+        # Neither version has experiments — pure structural heuristic
+        impact_score, impact_level = _structural_heuristic()
     
     return ImpactAnalysis(
         version_a_id=version_a_id,

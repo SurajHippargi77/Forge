@@ -138,3 +138,12 @@ body {
 .react-flow__background-pattern {
   stroke: #1e293b;
 }
+
+/* Toast animation */
+@keyframes fade-in {
+  from { opacity: 0; transform: translate(-50%, -12px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+.animate-fade-in {
+  animation: fade-in 0.25s ease-out;
+}

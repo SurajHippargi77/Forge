@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Zap, Plus, Cpu, GitBranch, Beaker, WifiOff } from 'lucide-react';
+import { Zap, Plus, Cpu, GitBranch, Beaker, WifiOff, Trash2 } from 'lucide-react';
 
 import { useStore, useGraphs, useActiveGraph, useActiveVersion, useExperiments, useVersions } from './store/useStore';
 import { apiClient } from './api/client';
@@ -17,7 +17,7 @@ const App: React.FC = () => {
   const activeVersion = useActiveVersion();
   const experiments = useExperiments();
   const versions = useVersions();
-  const { fetchGraphs, fetchAlgorithms, createGraph, setActiveGraph, setLoading } = useStore();
+  const { fetchGraphs, fetchAlgorithms, createGraph, deleteGraph, setActiveGraph, setLoading } = useStore();
   
   const [activeTab, setActiveTab] = useState<TabType>('editor');
   const [currentView, setCurrentView] = useState<ViewType>('main');
@@ -132,7 +132,7 @@ const App: React.FC = () => {
               <Zap className="text-white" size={18} />
             </div>
             <div>
-              <h1 className="text-white font-bold text-lg tracking-tight">Froge</h1>
+              <h1 className="text-white font-bold text-lg tracking-tight">Forge</h1>
               <p className="text-gray-500 text-[10px] uppercase tracking-widest">ML Workflow OS</p>
             </div>
           </div>
@@ -200,27 +200,39 @@ const App: React.FC = () => {
                   const vCount = getVersionCount(graph.id);
                   const hasExperiments = (graph as any).versions?.some((v: any) => v.experiments && v.experiments.length > 0);
                   return (
-                    <button
+                    <div
                       key={graph.id}
-                      onClick={() => setActiveGraph(graph)}
                       className={`
-                        w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all duration-150
+                        group w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all duration-150 cursor-pointer
                         ${activeGraph?.id === graph.id 
                           ? 'bg-blue-600/15 text-white border-l-[3px] border-l-blue-500' 
                           : 'text-gray-300 hover:bg-gray-700/50 border-l-[3px] border-l-transparent'
                         }
                       `}
+                      onClick={() => setActiveGraph(graph)}
                     >
-                      <div className="flex items-center space-x-2">
-                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${hasExperiments ? 'bg-green-400' : 'bg-gray-600'}`} />
-                        <span className="font-medium truncate">{graph.name}</span>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2 min-w-0">
+                          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${hasExperiments ? 'bg-green-400' : 'bg-gray-600'}`} />
+                          <span className="font-medium truncate">{graph.name}</span>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteGraph(graph.id);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-500/20 text-gray-500 hover:text-red-400 transition-all duration-150 flex-shrink-0"
+                          title="Delete graph"
+                        >
+                          <Trash2 size={13} />
+                        </button>
                       </div>
                       <div className="flex items-center mt-1 ml-4">
                         <span className="text-[11px] bg-gray-700/60 text-gray-400 px-2 py-0.5 rounded-full">
                           {vCount} version{vCount !== 1 ? 's' : ''}
                         </span>
                       </div>
-                    </button>
+                    </div>
                   );
                 })
               )}
@@ -253,7 +265,7 @@ const App: React.FC = () => {
                   <Zap className="text-white" size={32} />
                 </div>
               </div>
-              <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">Froge</h1>
+              <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">Forge</h1>
               <p className="text-lg text-gray-400 mb-1">Graph-Native ML Workflow OS</p>
               <p className="text-gray-600 text-sm">Create or select a graph to get started</p>
             </div>

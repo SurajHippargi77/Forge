@@ -141,11 +141,15 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ versionAId, versionBId, onClose
                     <div>
                       <h5 className="text-sm font-medium text-green-400 mb-2">Added Edges:</h5>
                       <div className="space-y-1">
-                        {added_edges.map((edge, index) => (
-                          <div key={index} className="bg-[#14532d] text-green-300 border border-green-800/40 px-3 py-2 rounded-md text-sm">
-                            + {edge.source} → {edge.target}
-                          </div>
-                        ))}
+                        {added_edges.map((edge, index) => {
+                          const srcName = edge.source.split('-')[0].charAt(0).toUpperCase() + edge.source.split('-')[0].slice(1);
+                          const tgtName = edge.target.split('-')[0].charAt(0).toUpperCase() + edge.target.split('-')[0].slice(1);
+                          return (
+                            <div key={index} className="bg-[#14532d] text-green-300 border border-green-800/40 px-3 py-2 rounded-md text-sm">
+                              + {srcName} → {tgtName}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -153,11 +157,15 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ versionAId, versionBId, onClose
                     <div>
                       <h5 className="text-sm font-medium text-red-400 mb-2">Removed Edges:</h5>
                       <div className="space-y-1">
-                        {removed_edges.map((edge, index) => (
-                          <div key={index} className="bg-[#7f1d1d] text-red-300 border border-red-800/40 px-3 py-2 rounded-md text-sm">
-                            − {edge.source} → {edge.target}
-                          </div>
-                        ))}
+                        {removed_edges.map((edge, index) => {
+                          const srcName = edge.source.split('-')[0].charAt(0).toUpperCase() + edge.source.split('-')[0].slice(1);
+                          const tgtName = edge.target.split('-')[0].charAt(0).toUpperCase() + edge.target.split('-')[0].slice(1);
+                          return (
+                            <div key={index} className="bg-[#7f1d1d] text-red-300 border border-red-800/40 px-3 py-2 rounded-md text-sm">
+                              − {srcName} → {tgtName}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}

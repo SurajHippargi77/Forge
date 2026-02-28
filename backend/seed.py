@@ -1,19 +1,19 @@
 """
-Seed script for Froge hackathon demo.
+Seed script for Forge hackathon demo.
 Creates compelling demo data so judges see a rich app immediately.
 
 Usage:
-  cd froge
+  cd forge
   python -m backend.seed
   # OR
-  cd froge/backend
+  cd forge/backend
   python seed.py
 """
 import sqlite3, os, json, datetime
 
-# Resolve DB path: froge.db lives next to the backend/ folder
+# Resolve DB path: forge.db lives next to the backend/ folder
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(SCRIPT_DIR, "..", "froge.db")
+DB_PATH = os.path.join(SCRIPT_DIR, "..", "forge.db")
 DB_PATH = os.path.normpath(DB_PATH)
 
 def now_iso():

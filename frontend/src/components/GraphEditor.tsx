@@ -43,6 +43,14 @@ const GraphEditor: React.FC<GraphEditorProps> = ({ onSweepLaunched }) => {
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
   const [showSweepPanel, setShowSweepPanel] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 2000);
+  };
   const [sweepConfig, setSweepConfig] = useState({
     learning_rate: '0.01, 0.001',
     batch_size: '32, 64',
@@ -74,6 +82,7 @@ const GraphEditor: React.FC<GraphEditorProps> = ({ onSweepLaunched }) => {
     source: edge.source,
     target: edge.target,
     type: 'smoothstep',
+    style: {},
   })) : [];
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
@@ -109,6 +118,27 @@ const GraphEditor: React.FC<GraphEditorProps> = ({ onSweepLaunched }) => {
     }
   }, [activeVersion, setNodes, setEdges]);
 
+  // Compute styled edges: highlight hovered edge in blue, selected edge bright blue
+  const styledEdges = useMemo(() => {
+    return edges.map((edge) => ({
+      ...edge,
+      style: edge.selected
+        ? { stroke: '#3b82f6', strokeWidth: 3, cursor: 'pointer' }
+        : edge.id === hoveredEdgeId
+          ? { stroke: '#3b82f6', strokeWidth: 3 }
+          : { stroke: '#4b5563', strokeWidth: 1.5, cursor: 'pointer' },
+      animated: edge.id === hoveredEdgeId || edge.selected,
+    }));
+  }, [edges, hoveredEdgeId]);
+
+  // Compute styled nodes: add green glow class on hovered node
+  const styledNodes = useMemo(() => {
+    return nodes.map((node) => ({
+      ...node,
+      className: node.id === hoveredNodeId ? 'ring-2 ring-green-400 ring-offset-2 ring-offset-transparent rounded-lg' : '',
+    }));
+  }, [nodes, hoveredNodeId]);
+
   const onConnect = useCallback((params: Connection) => {
     setEdges((eds) => addEdge({ ...params, type: 'smoothstep' }, eds));
     setHasUnsavedChanges(true);
@@ -121,7 +151,45 @@ const GraphEditor: React.FC<GraphEditorProps> = ({ onSweepLaunched }) => {
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
-  }, []);
+
+    if (!reactFlowInstance) return;
+
+    const flowPos = reactFlowInstance.screenToFlowPosition({
+      x: event.clientX,
+      y: event.clientY,
+    });
+
+    // Check proximity to edge midpoints
+    let closestEdgeId: string | null = null;
+    let closestEdgeDist = Infinity;
+    for (const edge of edges) {
+      const sourceNode = nodes.find((n) => n.id === edge.source);
+      const targetNode = nodes.find((n) => n.id === edge.target);
+      if (!sourceNode || !targetNode) continue;
+      const midX = (sourceNode.position.x + targetNode.position.x) / 2;
+      const midY = (sourceNode.position.y + targetNode.position.y) / 2;
+      const dist = Math.sqrt((flowPos.x - midX) ** 2 + (flowPos.y - midY) ** 2);
+      if (dist < closestEdgeDist) {
+        closestEdgeDist = dist;
+        closestEdgeId = edge.id;
+      }
+    }
+    setHoveredEdgeId(closestEdgeDist < 40 ? closestEdgeId : null);
+
+    // Check proximity to a node's right handle (source handle)
+    let closestNodeId: string | null = null;
+    let closestNodeDist = Infinity;
+    for (const node of nodes) {
+      const handleX = node.position.x + 150; // approximate right edge of node
+      const handleY = node.position.y + 20;  // approximate vertical center
+      const dist = Math.sqrt((flowPos.x - handleX) ** 2 + (flowPos.y - handleY) ** 2);
+      if (dist < closestNodeDist) {
+        closestNodeDist = dist;
+        closestNodeId = node.id;
+      }
+    }
+    setHoveredNodeId(closestEdgeDist < 40 ? null : closestNodeDist < 60 ? closestNodeId : null);
+  }, [reactFlowInstance, edges, nodes]);
 
   const onDrop = useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
@@ -174,9 +242,30 @@ const GraphEditor: React.FC<GraphEditorProps> = ({ onSweepLaunched }) => {
       };
 
       setNodes((nds) => nds.concat(newNode));
+
+      // Auto-connect: split hovered edge
+      if (hoveredEdgeId) {
+        const targetEdge = edges.find((e) => e.id === hoveredEdgeId);
+        if (targetEdge) {
+          setEdges((eds) => [
+            ...eds.filter((e) => e.id !== hoveredEdgeId),
+            { id: `e-${targetEdge.source}-${newNode.id}`, source: targetEdge.source, target: newNode.id, type: 'smoothstep' },
+            { id: `e-${newNode.id}-${targetEdge.target}`, source: newNode.id, target: targetEdge.target, type: 'smoothstep' },
+          ]);
+        }
+        setHoveredEdgeId(null);
+      } else if (hoveredNodeId) {
+        // Auto-connect: attach to nearby node's right handle
+        setEdges((eds) => [
+          ...eds,
+          { id: `e-${hoveredNodeId}-${newNode.id}`, source: hoveredNodeId, target: newNode.id, type: 'smoothstep' },
+        ]);
+        setHoveredNodeId(null);
+      }
+
       setHasUnsavedChanges(true);
     },
-    [reactFlowInstance, setNodes]
+    [reactFlowInstance, setNodes, setEdges, edges, hoveredEdgeId, hoveredNodeId]
   );
 
   function handleDeleteNode(nodeId: string) {
@@ -220,8 +309,10 @@ const GraphEditor: React.FC<GraphEditorProps> = ({ onSweepLaunched }) => {
 
       await saveVersion(graphNodes, graphEdges);
       setHasUnsavedChanges(false);
+      showToast('Version saved successfully', 'success');
     } catch (error) {
       console.error('Failed to save version:', error);
+      showToast('Failed to save version', 'error');
     } finally {
       setLoading(false);
     }
@@ -343,15 +434,30 @@ const GraphEditor: React.FC<GraphEditorProps> = ({ onSweepLaunched }) => {
         {/* Main Canvas */}
         <div className="flex-1 relative" ref={reactFlowWrapper}>
           <ReactFlow
-            nodes={nodes}
-            edges={edges}
+            nodes={styledNodes}
+            edges={styledEdges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             onInit={onInit}
             onDrop={onDrop}
             onDragOver={onDragOver}
+            onEdgeClick={(event, edge) => {
+              setEdges((eds) => eds.map((e) => ({ ...e, selected: e.id === edge.id })));
+              setHasUnsavedChanges(true);
+            }}
+            onEdgeDoubleClick={(event, edge) => {
+              setEdges((eds) => eds.filter((e) => e.id !== edge.id));
+              setHasUnsavedChanges(true);
+            }}
             nodeTypes={nodeTypes}
+            deleteKeyCode="Delete"
+            defaultEdgeOptions={{
+              type: 'smoothstep',
+              style: { strokeWidth: 2, stroke: '#6b7280' },
+            }}
+            edgesFocusable={true}
+            edgesUpdatable={true}
             fitView
             className="bg-[#0f0f1a]"
           >
@@ -371,6 +477,13 @@ const GraphEditor: React.FC<GraphEditorProps> = ({ onSweepLaunched }) => {
                 <p className="text-gray-500 text-lg font-medium mb-1">Empty Canvas</p>
                 <p className="text-gray-600 text-sm">Drag nodes from the palette to start building your model</p>
               </div>
+            </div>
+          )}
+
+          {/* Edge deletion hint */}
+          {edges.length > 0 && (
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 pointer-events-none z-10">
+              <p className="text-gray-600 text-xs">Click a connection to select · Double-click or Delete key to remove</p>
             </div>
           )}
         </div>
@@ -425,6 +538,20 @@ const GraphEditor: React.FC<GraphEditorProps> = ({ onSweepLaunched }) => {
                 Launch Sweep
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toast && (
+        <div className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-lg shadow-xl border backdrop-blur-sm transition-all duration-300 animate-fade-in ${
+          toast.type === 'success'
+            ? 'bg-green-600/90 border-green-500/50 text-white'
+            : 'bg-red-600/90 border-red-500/50 text-white'
+        }`}>
+          <div className="flex items-center space-x-2">
+            <span>{toast.type === 'success' ? '✅' : '❌'}</span>
+            <span className="text-sm font-medium">{toast.message}</span>
           </div>
         </div>
       )}

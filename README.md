@@ -1,6 +1,6 @@
-# Froge — Graph-Native ML Workflow OS
+# Forge — Graph-Native ML Workflow OS
 
-Froge is a graph-native machine learning workflow operating system designed to streamline ML experiment management, versioning, and visualization.
+Forge is a graph-native machine learning workflow operating system designed to streamline ML experiment management, versioning, and visualization.
 
 ## Architecture
 
@@ -20,7 +20,7 @@ Froge is a graph-native machine learning workflow operating system designed to s
 ## Project Structure
 
 ```
-froge/
+forge/
 ├── backend/
 │   ├── main.py              # FastAPI application entry point
 │   ├── database.py          # Database configuration and session management

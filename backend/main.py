@@ -13,7 +13,7 @@ async def lifespan(app: FastAPI):
     pass
 
 app = FastAPI(
-    title="Froge API", 
+    title="Forge API", 
     version="1.0.0",
     lifespan=lifespan
 )
@@ -39,7 +39,7 @@ async def health_check():
 
 @app.get("/")
 async def root():
-    return {"message": "Froge API - Graph-Native ML Workflow OS"}
+    return {"message": "Forge API - Graph-Native ML Workflow OS"}
 
 if __name__ == "__main__":
     import uvicorn

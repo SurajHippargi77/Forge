@@ -18,6 +18,7 @@ interface StoreActions {
   // Graph actions
   fetchGraphs: () => Promise<void>;
   createGraph: (name: string, description?: string) => Promise<Graph | null>;
+  deleteGraph: (graphId: number) => Promise<void>;
   setActiveGraph: (graph: Graph | null) => Promise<void>;
   
   // Version actions
@@ -88,6 +89,28 @@ export const useStore = create<Store>((set, get) => ({
         isLoading: false 
       });
       return null;
+    }
+  },
+
+  deleteGraph: async (graphId: number) => {
+    try {
+      set({ isLoading: true, error: null });
+      await apiClient.deleteGraph(graphId);
+      const currentActive = get().activeGraph;
+      const graphs = await apiClient.listGraphs();
+      const updates: Partial<Store> = { graphs, isLoading: false };
+      if (currentActive?.id === graphId) {
+        updates.activeGraph = null;
+        updates.activeVersion = null;
+        updates.versions = [];
+        updates.experiments = [];
+      }
+      set(updates);
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : 'Failed to delete graph',
+        isLoading: false,
+      });
     }
   },
 

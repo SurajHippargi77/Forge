@@ -77,7 +77,7 @@ const CustomNode: React.FC<NodeProps<CustomNodeData>> = ({ id, data, selected })
                 min={paramName === 'rate' ? '0' : '1'}
                 value={getParamValue(paramName)}
                 onChange={(e) => handleParamChange(paramName, e.target.value)}
-                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="w-full px-2 py-1 text-sm text-black border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
                 placeholder={`Enter ${paramName}`}
               />
             </div>

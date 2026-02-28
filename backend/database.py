@@ -1,9 +1,10 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
+from sqlalchemy import event
 import os
 
 # Database URL for async SQLite
-SQLALCHEMY_DATABASE_URL = "sqlite+aiosqlite:///./froge.db"
+SQLALCHEMY_DATABASE_URL = "sqlite+aiosqlite:///./forge.db"
 
 # Create async engine
 engine = create_async_engine(
@@ -11,6 +12,13 @@ engine = create_async_engine(
     connect_args={"check_same_thread": False},
     echo=True  # Set to False in production
 )
+
+# Enable SQLite foreign key enforcement
+@event.listens_for(engine.sync_engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
 
 # Create async session factory
 AsyncSessionLocal = async_sessionmaker(
