@@ -1,0 +1,41 @@
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.orm import declarative_base
+import os
+
+# Database URL for async SQLite
+SQLALCHEMY_DATABASE_URL = "sqlite+aiosqlite:///./froge.db"
+
+# Create async engine
+engine = create_async_engine(
+    SQLALCHEMY_DATABASE_URL,
+    connect_args={"check_same_thread": False},
+    echo=True  # Set to False in production
+)
+
+# Create async session factory
+AsyncSessionLocal = async_sessionmaker(
+    engine,
+    class_=AsyncSession,
+    expire_on_commit=False
+)
+
+# Base class for models
+Base = declarative_base()
+
+# Dependency to get async database session
+async def get_db() -> AsyncSession:
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+        finally:
+            await session.close()
+
+# Function to create all tables
+async def create_tables():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+# Function to drop all tables (for testing)
+async def drop_tables():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
